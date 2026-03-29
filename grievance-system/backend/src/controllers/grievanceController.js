@@ -42,7 +42,9 @@ const submitGrievance = async (req, res, next) => {
     let geoLat = latitude ? parseFloat(latitude) : null;
     let geoLng = longitude ? parseFloat(longitude) : null;
     try {
-      const geoResult = await geocodeText(`${subject} ${description}`);
+      // Send only description (not subject+description) to avoid
+      // overwhelming the geocoder with huge text strings
+      const geoResult = await geocodeText(description);
       if (geoResult && geoResult.success) {
         geoLat = geoLat || geoResult.latitude;
         geoLng = geoLng || geoResult.longitude;
@@ -131,13 +133,27 @@ const submitGrievance = async (req, res, next) => {
     });
 
     // ── Step 7: Create Grievance ──────────────────────────────────
+    // Helper: truncate strings to prevent MySQL 'Data too long' errors
+    const trunc = (val, max) => val && typeof val === 'string' ? val.slice(0, max) : val;
+
     const ticketId = generateTicketId();
     const grievance = await Grievance.create({
-      ticketId, customerName, customerEmail, customerPhone,
-      orderId, category: aiCategory, priority: aiPriority, department: grievanceDepartment,
-      subject, description, sentiment, attachmentUrl,
+      ticketId,
+      customerName: trunc(customerName, 100),
+      customerEmail: trunc(customerEmail, 150),
+      customerPhone: trunc(customerPhone, 20),
+      orderId: trunc(orderId, 50),
+      category: trunc(aiCategory, 50),
+      priority: trunc(aiPriority, 20),
+      department: trunc(grievanceDepartment, 50),
+      subject: trunc(subject, 255),
+      description,
+      sentiment: trunc(sentiment, 20),
+      attachmentUrl,
       latitude: lat, longitude: lng, imageHash, priorityScore,
-      district: geoDistrict, state: geoState, country: geoCountry,
+      district: trunc(geoDistrict, 100),
+      state: trunc(geoState, 100),
+      country: trunc(geoCountry, 100),
     });
 
     // Override status if CV flagged it

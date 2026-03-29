@@ -13,7 +13,7 @@ const CV_SERVICE_URL = process.env.CV_SERVICE_URL || 'http://localhost:8001';
 // ── Shared Axios instances with defaults ──
 const nlpClient = axios.create({
   baseURL: NLP_SERVICE_URL,
-  timeout: 10000,
+  timeout: 30000,  // 30s — geocoding rate-limits Nominatim at 1.1s/req
   headers: { 'Content-Type': 'application/json' },
 });
 
