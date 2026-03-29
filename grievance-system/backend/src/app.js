@@ -13,6 +13,9 @@ const nlpRoutes = require('./routes/nlpRoutes');
 
 const app = express();
 
+// Railway runs behind a reverse proxy; trust first proxy for rate-limit/client IP.
+app.set('trust proxy', 1);
+
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 
 // ── CORS — support comma-separated FRONTEND_URL for Railway preview URLs ──
