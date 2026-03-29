@@ -21,7 +21,7 @@ const upload = multer({
 });
 
 router.post('/', optionalAuth, upload.single('attachment'), submitGrievance);
-router.get('/map-data', getMapData);
+router.get('/map-data', optionalAuth, getMapData);
 router.get('/', optionalAuth, listGrievances);
 router.get('/:id', getGrievance);
 router.patch('/:id/status', auth, requireRole('admin', 'officer'), updateStatus);

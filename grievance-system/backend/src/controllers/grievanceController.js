@@ -1,5 +1,4 @@
 const path = require('path');
-const axios = require('axios');
 const Grievance = require('../models/Grievance');
 const Department = require('../models/Department');
 const { generateTicketId } = require('../utils/generateId');
@@ -11,9 +10,8 @@ const { validateImage } = require('../services/cvValidationService');
 const { sendAcknowledgement, sendStatusUpdate, sendResolutionEmail } = require('../services/emailService');
 const { broadcastUpdate, notifyOfficer } = require('../services/notificationService');
 const { checkSLA } = require('../services/slaService');
+const { geocodeText, triageText } = require('../services/microserviceClient');
 const logger = require('../utils/logger');
-
-const NLP_SERVICE_URL = process.env.NLP_SERVICE_URL || 'http://localhost:8002';
 
 const submitGrievance = async (req, res, next) => {
   try {
@@ -37,38 +35,33 @@ const submitGrievance = async (req, res, next) => {
       logger.warn('AI classification failed:', e.message);
     }
 
-    // ── Step 1b: NLP Geocoding ───────────────────────────────────
+    // ── Step 1b: NLP Geocoding (via microserviceClient) ──────────
     let geoDistrict = null;
     let geoState = null;
     let geoCountry = null;
     let geoLat = latitude ? parseFloat(latitude) : null;
     let geoLng = longitude ? parseFloat(longitude) : null;
     try {
-      const geoRes = await axios.post(`${NLP_SERVICE_URL}/geocode`, {
-        text: `${subject} ${description}`,
-      }, { timeout: 8000 });
-      if (geoRes.data && geoRes.data.success) {
-        geoLat = geoLat || geoRes.data.latitude;
-        geoLng = geoLng || geoRes.data.longitude;
-        geoDistrict = geoRes.data.district;
-        geoState = geoRes.data.state;
-        geoCountry = geoRes.data.country;
+      const geoResult = await geocodeText(`${subject} ${description}`);
+      if (geoResult && geoResult.success) {
+        geoLat = geoLat || geoResult.latitude;
+        geoLng = geoLng || geoResult.longitude;
+        geoDistrict = geoResult.district;
+        geoState = geoResult.state;
+        geoCountry = geoResult.country;
       }
     } catch (e) {
       logger.warn('NLP geocoding failed:', e.message);
     }
 
-    // ── Step 1c: NLP Priority Triage ─────────────────────────────
+    // ── Step 1c: NLP Priority Triage (via microserviceClient) ────
     try {
-      const triageRes = await axios.post(`${NLP_SERVICE_URL}/triage`, {
-        text: description,
-        subject: subject,
-      }, { timeout: 5000 });
-      if (triageRes.data) {
-        aiPriority = triageRes.data.priority || aiPriority;
-        sentiment = triageRes.data.sentiment || sentiment;
-        if (triageRes.data.category) {
-          aiCategory = triageRes.data.category;
+      const triageResult = await triageText(description, subject);
+      if (triageResult) {
+        aiPriority = triageResult.priority || aiPriority;
+        sentiment = triageResult.sentiment || sentiment;
+        if (triageResult.category) {
+          aiCategory = triageResult.category;
         }
       }
     } catch (e) {
@@ -262,7 +255,21 @@ const upvoteGrievance = async (req, res, next) => {
 
 const getMapData = async (req, res, next) => {
   try {
-    const grievances = await Grievance.findAll({ limit: 200 });
+    // ── Role-based department filtering ──
+    // Super Admin (admin with no department): sees ALL grievances
+    // Department Admin (admin with department): sees only their department
+    // Officer: sees all (they may be cross-department)
+    // Customer / Unauthenticated: sees all (public transparency)
+    let departmentFilter;
+    if (req.user && req.user.role === 'admin' && req.user.department) {
+      departmentFilter = req.user.department;
+    }
+
+    const grievances = await Grievance.findAll({
+      limit: 500,
+      department: departmentFilter,
+    });
+
     const PRIORITY_COLORS = {
       critical: '#ec4899',
       high: '#ef4444',
@@ -285,17 +292,23 @@ const getMapData = async (req, res, next) => {
         description: g.description?.slice(0, 150),
         category: g.category,
         priority: g.priority,
+        department: g.department,
         status: g.status,
         latitude: parseFloat(g.latitude),
         longitude: parseFloat(g.longitude),
         district: g.district,
         state: g.state,
+        priority_score: g.priority_score || 50,
         priority_color: PRIORITY_COLORS[g.priority] || '#8b5cf6',
         status_color: STATUS_COLORS[g.status] || '#64748b',
         created_at: g.created_at,
         upvote_count: g.upvote_count || 0,
       }));
-    res.json({ markers, total: markers.length });
+    res.json({
+      markers,
+      total: markers.length,
+      filteredByDepartment: departmentFilter || null,
+    });
   } catch (err) { next(err); }
 };
 

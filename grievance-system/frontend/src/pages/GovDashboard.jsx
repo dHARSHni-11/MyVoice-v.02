@@ -238,6 +238,18 @@ export default function GovDashboard() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button onClick={() => navigate('/gov/map')} style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '7px 16px', borderRadius: 10,
+            background: 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.1))',
+            border: '1px solid rgba(99,102,241,0.3)',
+            color: '#818cf8', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+            boxShadow: '0 0 12px rgba(99,102,241,0.15)',
+            transition: 'all 0.2s',
+          }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'linear-gradient(135deg, rgba(99,102,241,0.25), rgba(139,92,246,0.2))'; e.currentTarget.style.boxShadow = '0 0 20px rgba(99,102,241,0.3)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.1))'; e.currentTarget.style.boxShadow = '0 0 12px rgba(99,102,241,0.15)'; }}
+          >🗺️ Map View</button>
           <div style={{ textAlign: 'right' }}>
             <div style={{ color: 'white', fontWeight: 600, fontSize: 13 }}>{user?.name}</div>
             <div style={{ color: '#6366f1', fontSize: 10, fontWeight: 600 }}>ID: {user?.governmentId}</div>

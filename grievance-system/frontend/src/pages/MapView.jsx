@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { mapAPI } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import StatusBadge from '../components/StatusBadge';
 import PriorityBadge from '../components/PriorityBadge';
 import HeatMapContainer from '../components/HeatMapContainer';
@@ -30,22 +31,25 @@ const DEFAULT_CENTER = [20.5937, 78.9629];
 const DEFAULT_ZOOM = 5;
 
 export default function MapView() {
+  const { user } = useAuth();
   const [markers, setMarkers] = useState([]);
   const [selected, setSelected] = useState(null);
   const [filter, setFilter] = useState('all');
   const [colorBy, setColorBy] = useState('priority'); // 'priority' or 'status'
   const [loading, setLoading] = useState(true);
+  const [departmentFilter, setDepartmentFilter] = useState(null);
   const [upvoted, setUpvoted] = useState(new Set());
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markersLayerRef = useRef(null);
   const navigate = useNavigate();
 
-  // Load map data from backend
+  // Load map data from backend (auth token is auto-attached by api interceptor)
   useEffect(() => {
     mapAPI.getMapData()
       .then(r => {
         setMarkers(r.data.markers || []);
+        setDepartmentFilter(r.data.filteredByDepartment || null);
       })
       .catch(() => {
         // Fallback: load from grievance list
@@ -58,6 +62,7 @@ export default function MapView() {
                 ticket_id: g.ticket_id,
                 latitude: parseFloat(g.latitude),
                 longitude: parseFloat(g.longitude),
+                priority_score: g.priority_score || 50,
                 priority_color: PRIORITY_COLORS[g.priority] || '#8b5cf6',
                 status_color: STATUS_COLORS[g.status] || '#64748b',
                 upvote_count: g.upvote_count || 0,
@@ -242,6 +247,12 @@ export default function MapView() {
         <p className="text-sm" style={{ color: '#64748b' }}>
           Interactive map showing all reported issues by location. Powered by NLP geocoding.
         </p>
+        {departmentFilter && (
+          <div className="mt-2 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold"
+            style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)', color: '#a78bfa' }}>
+            🏢 Filtered: {departmentFilter} Department
+          </div>
+        )}
       </div>
 
       {/* Stats bar - Grid Layout */}

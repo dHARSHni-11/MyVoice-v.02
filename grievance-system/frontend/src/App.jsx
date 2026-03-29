@@ -15,6 +15,7 @@ import MapView from './pages/MapView';
 import Profile from './pages/Profile';
 import GovLogin from './pages/GovLogin';
 import GovDashboard from './pages/GovDashboard';
+import GovMapView from './pages/GovMapView';
 
 function ProtectedRoute({ children, roles }) {
   const { user } = useAuth();
@@ -81,6 +82,11 @@ export default function App() {
         <Route path="/gov/dashboard" element={
           <ProtectedRoute roles={['admin', 'officer']}>
             <GovDashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/gov/map" element={
+          <ProtectedRoute roles={['admin', 'officer']}>
+            <GovMapView />
           </ProtectedRoute>
         } />
 

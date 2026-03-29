@@ -1,6 +1,12 @@
 import axios from 'axios';
 
-const api = axios.create({ baseURL: '/api' });
+// ── API Base URL ──
+// In production (Railway), set VITE_API_BASE_URL to your backend's public URL + /api
+// e.g., VITE_API_BASE_URL=https://backend-production-xxxx.up.railway.app/api
+// In development, defaults to '/api' which is proxied by Vite to localhost:5000
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+
+const api = axios.create({ baseURL: API_BASE_URL });
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
