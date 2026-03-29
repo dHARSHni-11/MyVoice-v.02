@@ -32,7 +32,11 @@ app.add_middleware(
 )
 
 # ── Load spaCy model at startup ───────────────────────────────────
-nlp = spacy.load("en_core_web_sm")
+try:
+    nlp = spacy.load("en_core_web_sm")
+except Exception:
+    # Keep service alive even if model install fails; NER quality will be reduced.
+    nlp = spacy.blank("en")
 
 # ── Geocoder ──────────────────────────────────────────────────────
 geocoder = Nominatim(user_agent="grievance_system_geocoder_v1", timeout=10)
