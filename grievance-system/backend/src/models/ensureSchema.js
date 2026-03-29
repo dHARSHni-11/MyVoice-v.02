@@ -167,6 +167,32 @@ async function ensureDefaultUsers() {
   }
 }
 
+async function cleanupTestGrievances() {
+  // One-time cleanup: remove test grievances created during development/debugging
+  const testTickets = [
+    'GRV-MNBXADMG-R2TO',
+    'GRV-MNBX8OTD-HQ44',
+    'GRV-MNBWDGJY-PVIN',
+    'GRV-MNBW6E3H-JCDM',
+    'GRV-MNBRD8SS-NM47',
+  ];
+
+  for (const ticketId of testTickets) {
+    // Get grievance id first
+    const [rows] = await pool.query('SELECT id FROM grievances WHERE ticket_id = ?', [ticketId]);
+    if (rows.length === 0) continue;
+
+    const gId = rows[0].id;
+    // Delete related records first (foreign key constraints)
+    await pool.query('DELETE FROM internal_notes WHERE grievance_id = ?', [gId]);
+    await pool.query('DELETE FROM grievance_updates WHERE grievance_id = ?', [gId]);
+    await pool.query('DELETE FROM grievance_upvoters WHERE grievance_id = ?', [gId]);
+    // Hard delete the grievance
+    await pool.query('DELETE FROM grievances WHERE id = ?', [gId]);
+    logger.info(`Cleanup: deleted test grievance ${ticketId}`);
+  }
+}
+
 async function ensureSchema() {
   const hasUsers = await tableExists('users');
   const hasGrievances = await tableExists('grievances');
@@ -177,6 +203,7 @@ async function ensureSchema() {
   await ensureCoreTables();
   await ensureGrievanceColumns();
   await ensureDefaultUsers();
+  await cleanupTestGrievances();
   logger.info('Schema: verification complete');
 }
 
