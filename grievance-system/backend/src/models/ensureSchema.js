@@ -137,6 +137,36 @@ async function ensureGrievanceColumns() {
   await addIndexIfMissing('grievances', 'idx_state', 'state');
 }
 
+async function ensureDefaultUsers() {
+  const bcrypt = require('bcryptjs');
+  const crypto = require('crypto');
+
+  const users = [
+    { name: 'Admin User',           email: 'admin@caredesk.in',    password: 'Admin@123',   role: 'admin',   governmentId: null,       department: null },
+    { name: 'Support Officer',      email: 'officer@caredesk.in',  password: 'Officer@123', role: 'officer', governmentId: null,       department: null },
+    { name: 'Gov Super Admin',      email: 'govadmin@myvoice.in',  password: 'Gov@1234',    role: 'admin',   governmentId: 'GOV-0001', department: null },
+    { name: 'Water Dept Official',  email: 'water@gov.in',         password: 'Water@123',   role: 'admin',   governmentId: 'GOV-1001', department: 'Water' },
+    { name: 'Road Dept Official',   email: 'road@gov.in',          password: 'Road@123',    role: 'admin',   governmentId: 'GOV-1002', department: 'Road' },
+    { name: 'Electricity Official', email: 'electricity@gov.in',   password: 'Elec@123',    role: 'admin',   governmentId: 'GOV-1003', department: 'Electricity' },
+    { name: 'Garbage Official',     email: 'garbage@gov.in',       password: 'Garb@123',    role: 'admin',   governmentId: 'GOV-1004', department: 'Garbage' },
+  ];
+
+  for (const u of users) {
+    // Check if user already exists by email
+    const [existing] = await pool.query('SELECT id FROM users WHERE email = ?', [u.email]);
+    if (existing.length > 0) continue;
+
+    const hash = await bcrypt.hash(u.password, 12);
+    const id = crypto.randomUUID();
+    await pool.query(
+      `INSERT INTO users (id, name, email, password_hash, role, government_id, department)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [id, u.name, u.email, hash, u.role, u.governmentId, u.department]
+    );
+    logger.info(`Schema: seeded user ${u.email} (${u.role}${u.department ? ' / ' + u.department : ''})`);
+  }
+}
+
 async function ensureSchema() {
   const hasUsers = await tableExists('users');
   const hasGrievances = await tableExists('grievances');
@@ -146,6 +176,7 @@ async function ensureSchema() {
 
   await ensureCoreTables();
   await ensureGrievanceColumns();
+  await ensureDefaultUsers();
   logger.info('Schema: verification complete');
 }
 
